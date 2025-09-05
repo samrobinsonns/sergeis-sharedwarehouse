@@ -469,10 +469,10 @@ end
 
 -- Event handlers
 RegisterNetEvent('sergeis-warehouse:client:receiveWarehouseInfo', function(info)
-    
+
     ownership.has = info.owned
     ownership.purchased_slots = info.purchased_slots or 0
-    
+
     if info.owned then
         ownership.id = info.id or 1 -- Use proper ID for routing bucket
         -- Create entrance blip for owned warehouse
@@ -482,11 +482,15 @@ RegisterNetEvent('sergeis-warehouse:client:receiveWarehouseInfo', function(info)
     else
         -- For non-owners, check if they have shared warehouse access
         if info.shared_warehouses and #info.shared_warehouses > 0 then
-            -- Player has shared warehouse access, keep the entrance blip
+            -- Player has shared warehouse access, set ownership.id to first shared warehouse
+            -- This enables the green entry circle for shared warehouse users
+            ownership.id = info.shared_warehouses[1].id
+            ownership.purchased_slots = info.shared_warehouses[1].purchased_slots or 0
+
+            -- Create entrance blip for shared warehouse access
             if not DoesBlipExist(entranceBlip) then
                 entranceBlip = createBlip(Config.Entrance.coords, Config.Blips.Entrance)
             end
-            -- Don't reset ownership.id here as it might be set for shared access
         else
             -- Player has no warehouse access at all
             ownership.id = nil
@@ -498,7 +502,7 @@ RegisterNetEvent('sergeis-warehouse:client:receiveWarehouseInfo', function(info)
             end
         end
     end
-    
+
     -- Update UI
     SendNUIMessage({
         action = 'updateWarehouseInfo',
