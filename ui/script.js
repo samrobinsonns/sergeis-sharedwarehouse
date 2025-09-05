@@ -167,20 +167,65 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
   });
 });
 
-function showUI(show) {
+function showUI(show, loading = false) {
   if (show) {
     // Reset closing state when opening
     isClosing = false;
-    
+
     // Ensure UI is fully hidden before showing
     ipad.style.display = 'none';
-    
+
     // Small delay to ensure proper state
     setTimeout(() => {
       ipad.style.display = 'block';
+
+      // Show loading state if requested
+      if (loading) {
+        showLoadingState();
+      }
     }, 50);
   } else {
     ipad.style.display = 'none';
+    hideLoadingState();
+  }
+}
+
+function showLoadingState() {
+  // Create or show loading overlay
+  let loadingOverlay = document.getElementById('loadingOverlay');
+  if (!loadingOverlay) {
+    loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'loadingOverlay';
+    loadingOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+    `;
+    loadingOverlay.innerHTML = `
+      <div style="text-align: center;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 20px;"></i>
+        <div>Loading warehouse information...</div>
+      </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+  }
+  loadingOverlay.style.display = 'flex';
+}
+
+function hideLoadingState() {
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
   }
 }
 
@@ -248,7 +293,7 @@ function showInfoNotification(message) {
 
 function updateWarehouseInfo(info) {
   warehouseInfo = info;
-  
+
   // Debug: Log the received slot prices
   //console.log('Warehouse info received:', info);
   //if (info.slot_prices) {
@@ -257,7 +302,10 @@ function updateWarehouseInfo(info) {
       //console.log(`  Slot ${slot}: $${info.slot_prices[slot]}`);
    // }
  // }
-  
+
+  // Hide loading state when warehouse info is received
+  hideLoadingState();
+
   ownerStatus.textContent = info.owned ? 'Owned' : 'Not Owned';
   
   if (info.owned) {
@@ -516,7 +564,7 @@ window.addEventListener('message', function(event) {
   
   switch (data.action) {
     case 'showUI':
-      showUI(data.show);
+      showUI(data.show, data.loading);
       break;
       
     case 'showWarehouseSelection':

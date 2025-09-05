@@ -468,47 +468,8 @@ local function refreshOwnership()
 end
 
 -- Event handlers
-RegisterNetEvent('sergeis-warehouse:client:receiveWarehouseInfo', function(info)
-
-    ownership.has = info.owned
-    ownership.purchased_slots = info.purchased_slots or 0
-
-    if info.owned then
-        ownership.id = info.id or 1 -- Use proper ID for routing bucket
-        -- Create entrance blip for owned warehouse
-        if not DoesBlipExist(entranceBlip) then
-            entranceBlip = createBlip(Config.Entrance.coords, Config.Blips.Entrance)
-        end
-    else
-        -- For non-owners, check if they have shared warehouse access
-        if info.shared_warehouses and #info.shared_warehouses > 0 then
-            -- Player has shared warehouse access, set ownership.id to first shared warehouse
-            -- This enables the green entry circle for shared warehouse users
-            ownership.id = info.shared_warehouses[1].id
-            ownership.purchased_slots = info.shared_warehouses[1].purchased_slots or 0
-
-            -- Create entrance blip for shared warehouse access
-            if not DoesBlipExist(entranceBlip) then
-                entranceBlip = createBlip(Config.Entrance.coords, Config.Blips.Entrance)
-            end
-        else
-            -- Player has no warehouse access at all
-            ownership.id = nil
-            ownership.purchased_slots = 0
-            -- Remove entrance blip if no access
-            if DoesBlipExist(entranceBlip) then
-                RemoveBlip(entranceBlip)
-                entranceBlip = nil
-            end
-        end
-    end
-
-    -- Update UI
-    SendNUIMessage({
-        action = 'updateWarehouseInfo',
-        data = info
-    })
-end)
+-- Removed unused receiveWarehouseInfo event handler
+-- The server uses updateWarehouseInfo instead
 
 RegisterNetEvent('sergeis-warehouse:client:refreshOwnership', function()
     refreshOwnership()
@@ -688,30 +649,47 @@ local function openWarehouseUI()
         SetNuiFocus(false, false)
         Wait(100) -- Small delay to ensure proper state
     end
-    
+
     -- Check if player is at warehouse entrance
     local playerCoords = GetEntityCoords(PlayerPedId())
     local entranceDist = #(playerCoords - Config.Entrance.coords)
     local isAtEntrance = entranceDist < Config.Entrance.markerRange
-    
+
     -- Ensure NUI focus is properly set
     SetNuiFocus(true, true)
-    
-    -- Check if player has any warehouse access (owned or shared)
-    local hasAnyWarehouseAccess = ownership.has or (ownership.id and not ownership.has)
-    
-    if isAtEntrance and hasAnyWarehouseAccess then
-        -- Player is at entrance and has warehouse access - show selection modal
-        SendNUIMessage({
-            action = 'showWarehouseSelection'
-        })
-    else
-        -- Player is at sales ped or doesn't have warehouse access - show main UI
-        SendNUIMessage({
-            action = 'showUI',
-            show = true
-        })
-    end
+
+    -- Always request fresh ownership info when UI opens to avoid race conditions
+    print("^2[WAREHOUSE] Requesting ownership info when UI opens^7")
+    TriggerServerEvent('sergeis-warehouse:server:getWarehouseInfo')
+
+    -- Show loading state while waiting for ownership data
+    SendNUIMessage({
+        action = 'showUI',
+        show = true,
+        loading = true
+    })
+
+    -- Wait a moment for the server response, then update UI based on actual ownership
+    CreateThread(function()
+        Wait(500) -- Give server time to respond
+
+        -- Check ownership again after server response
+        local hasAnyWarehouseAccess = ownership.has or (ownership.id and not ownership.has)
+
+        if isAtEntrance and hasAnyWarehouseAccess then
+            -- Player is at entrance and has warehouse access - show selection modal
+            SendNUIMessage({
+                action = 'showWarehouseSelection'
+            })
+        else
+            -- Player is at sales ped or doesn't have warehouse access - show main UI without loading
+            SendNUIMessage({
+                action = 'showUI',
+                show = true,
+                loading = false
+            })
+        end
+    end)
 end
 
 -- Initialize
@@ -1034,7 +1012,7 @@ RegisterNetEvent('sergeis-warehouse:client:updateWarehouseInfo', function(info)
         ownership.has = true
         ownership.id = info.id
         ownership.purchased_slots = info.purchased_slots
-        
+
         -- Update UI with warehouse info
         SendNUIMessage({
             action = 'updateWarehouseInfo',
@@ -1042,9 +1020,19 @@ RegisterNetEvent('sergeis-warehouse:client:updateWarehouseInfo', function(info)
         })
     else
         ownership.has = false
-        ownership.id = nil
-        ownership.purchased_slots = 0
-        
+
+        -- For non-owners, check if they have shared warehouse access
+        if info.shared_warehouses and #info.shared_warehouses > 0 then
+            -- Player has shared warehouse access, set ownership.id to first shared warehouse
+            -- This enables the green entry circle for shared warehouse users
+            ownership.id = info.shared_warehouses[1].id
+            ownership.purchased_slots = info.shared_warehouses[1].purchased_slots or 0
+        else
+            -- Player has no warehouse access at all
+            ownership.id = nil
+            ownership.purchased_slots = 0
+        end
+
         -- Update UI with shared warehouses info
         SendNUIMessage({
             action = 'updateSharedWarehouses',
