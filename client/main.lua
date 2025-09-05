@@ -133,6 +133,10 @@ local function createBlip(coords, cfg)
     SetBlipScale(blip, cfg.scale)
     SetBlipColour(blip, cfg.color)
     SetBlipAsShortRange(blip, cfg.shortRange ~= false)
+    -- Ensure blip stays at fixed location and doesn't float
+    SetBlipAsMissionCreatorBlip(blip, true)
+    -- Force blip to stay at exact coordinates
+    SetBlipCoords(blip, coords.x, coords.y, coords.z)
     BeginTextCommandSetBlipName('STRING')
     AddTextComponentString(cfg.text)
     EndTextCommandSetBlipName(blip)
@@ -492,7 +496,7 @@ RegisterNetEvent('sergeis-warehouse:client:receiveWarehouseInfo', function(info)
             ownership.id = nil
             ownership.purchased_slots = 0
             -- Remove entrance blip if no access
-            if DoesBlipExist(entranceBlip) then
+            if entranceBlip and DoesBlipExist(entranceBlip) then
                 RemoveBlip(entranceBlip)
                 entranceBlip = nil
             end
@@ -515,7 +519,7 @@ RegisterNetEvent('sergeis-warehouse:client:onWarehouseSold', function()
     ownership.id = nil
     
     -- Remove entrance blip
-    if DoesBlipExist(entranceBlip) then
+    if entranceBlip and DoesBlipExist(entranceBlip) then
         RemoveBlip(entranceBlip)
         entranceBlip = nil
     end
@@ -684,18 +688,24 @@ local function openWarehouseUI()
         SetNuiFocus(false, false)
         Wait(100) -- Small delay to ensure proper state
     end
-    
+
+    -- Refresh ownership and shared warehouse status when opening UI
+    refreshOwnership()
+
+    -- Small delay to allow server response
+    Wait(200)
+
     -- Check if player is at warehouse entrance
     local playerCoords = GetEntityCoords(PlayerPedId())
     local entranceDist = #(playerCoords - Config.Entrance.coords)
     local isAtEntrance = entranceDist < Config.Entrance.markerRange
-    
+
     -- Ensure NUI focus is properly set
     SetNuiFocus(true, true)
-    
+
     -- Check if player has any warehouse access (owned or shared)
     local hasAnyWarehouseAccess = ownership.has or (ownership.id and not ownership.has)
-    
+
     if isAtEntrance and hasAnyWarehouseAccess then
         -- Player is at entrance and has warehouse access - show selection modal
         SendNUIMessage({

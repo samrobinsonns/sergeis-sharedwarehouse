@@ -832,7 +832,7 @@ local function getSharedWarehouses(citizenId)
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.lastname')) as owner_lastname
         FROM warehouse_sharing ws
         JOIN warehouses w ON ws.warehouse_id = w.id
-        LEFT JOIN players p ON ws.owner_citizenid = p.stateid
+        LEFT JOIN players p ON ws.owner_citizenid = p.citizenid
         WHERE ws.shared_with_citizenid = ? AND (ws.expires_at > NOW() OR ws.expires_at IS NULL)
         ORDER BY ws.created_at DESC
     ]], { citizenId })
@@ -847,7 +847,7 @@ local function getWarehouseSharedUsers(warehouseId)
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.firstname')) as player_firstname, 
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.lastname')) as player_lastname
         FROM warehouse_sharing ws
-        LEFT JOIN players p ON ws.shared_with_citizenid = p.stateid
+        LEFT JOIN players p ON ws.shared_with_citizenid = p.citizenid
         WHERE ws.warehouse_id = ?
         ORDER BY ws.created_at DESC
     ]], { warehouseId })
@@ -1107,9 +1107,15 @@ RegisterNetEvent('sergeis-warehouse:server:getWarehouseInfo', function()
             local retryPlayer = QBCore.Functions.GetPlayer(src)
             if retryPlayer then
                 print(string.format('[WAREHOUSE] getWarehouseInfo: Retry successful for source %s', src))
+                -- Trigger the event properly for the retry
                 TriggerEvent('sergeis-warehouse:server:getWarehouseInfo', src)
             else
                 print(string.format('[WAREHOUSE] getWarehouseInfo: Retry failed for source %s', src))
+                -- Send a fallback response to ensure UI shows Buy Warehouse button
+                TriggerClientEvent('sergeis-warehouse:client:updateWarehouseInfo', src, {
+                    owned = false,
+                    shared_warehouses = {}
+                })
             end
         end)
         return 
@@ -1121,7 +1127,9 @@ RegisterNetEvent('sergeis-warehouse:server:getWarehouseInfo', function()
     if warehouse then
         -- Get shared users
         local sharedUsers = getWarehouseSharedUsers(warehouse.id)
-        
+        -- Also get warehouses shared with this player (owners can have shared access too)
+        local sharedWarehouses = getSharedWarehouses(citizenId)
+
         local info = {
             owned = true,
             id = warehouse.id,
@@ -1130,9 +1138,10 @@ RegisterNetEvent('sergeis-warehouse:server:getWarehouseInfo', function()
             slot_price = Config.Warehouse.slotPrice,
             slot_prices = Config.Warehouse.slotPrices,
             sell_price = Config.Warehouse.sellPrice,
-            shared_users = sharedUsers
+            shared_users = sharedUsers,
+            shared_warehouses = sharedWarehouses
         }
-        
+
         TriggerClientEvent('sergeis-warehouse:client:updateWarehouseInfo', src, info)
     else
         -- Check if player has access to shared warehouses

@@ -340,9 +340,9 @@ function renderStorageGrid() {
     // Get individual slot price or fallback to default
     // Note: Server sends 1-based slot numbers, but JS arrays are 0-based, so we need slotNumber-1
     const slotPriceKey = slotNumber - 1;
-    const slotPrice = warehouseInfo.slot_prices && warehouseInfo.slot_prices[slotPriceKey] 
-      ? warehouseInfo.slot_prices[slotPriceKey] 
-      : warehouseInfo.slot_price;
+    const slotPrice = warehouseInfo.slot_prices && warehouseInfo.slot_prices[slotPriceKey]
+      ? warehouseInfo.slot_prices[slotPriceKey]
+      : (warehouseInfo.slot_price || 0);
     
 
     
@@ -359,7 +359,7 @@ function renderStorageGrid() {
           '<span class="slot-info">Storage Available</span>' : 
           canPurchase ?
           `<div class="slot-purchase-info">
-            <span class="slot-price">$${slotPrice.toLocaleString()}</span>
+            <span class="slot-price">$${(slotPrice || 0).toLocaleString()}</span>
             <button class="btn btn-sm btn-primary buy-slot-btn" onclick="buySingleSlot(${slotNumber})">Buy Slot</button>
            </div>` :
           '<span class="slot-info">Purchase previous slots first</span>'
@@ -1376,24 +1376,28 @@ function accessSharedWarehouse(warehouseId) {
 }
 
 // Event listeners for sharing modal
-cancelShareBtn.addEventListener('click', () => {
-  console.log('=== CANCEL BUTTON CLICKED ===');
-  console.log('Button element:', cancelShareBtn);
-  console.log('Modal state before closing:', isModalVisible(shareModal));
-  
-  // Close the modal
-  hideShareModal();
-  
-  // Reset the editing state
-  currentEditingShare = null;
-  
-  // Clear any existing notifications when closing modal
-  const notifications = document.querySelectorAll('.notification');
-  notifications.forEach(notification => notification.remove());
-  
-  console.log('Modal state after closing:', isModalVisible(shareModal));
-  console.log('Modal closed and currentEditingShare reset');
-});
+if (cancelShareBtn) {
+  cancelShareBtn.addEventListener('click', () => {
+    console.log('=== CANCEL BUTTON CLICKED ===');
+    console.log('Button element:', cancelShareBtn);
+    console.log('Modal state before closing:', isModalVisible(shareModal));
+
+    // Close the modal
+    hideShareModal();
+
+    // Reset the editing state
+    currentEditingShare = null;
+
+    // Clear any existing notifications when closing modal
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach(notification => notification.remove());
+
+    console.log('Modal state after closing:', isModalVisible(shareModal));
+    console.log('Modal closed and currentEditingShare reset');
+  });
+} else {
+  console.warn('cancelShareBtn element not found - cancel functionality may not work properly');
+}
 
 // Event listeners for warehouse selection modal
 if (cancelWarehouseSelectionBtn) {
