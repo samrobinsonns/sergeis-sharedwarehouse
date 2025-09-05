@@ -1041,10 +1041,10 @@ RegisterNetEvent('sergeis-warehouse:client:updateWarehouseInfo', function(info)
         ownership.id = nil
         ownership.purchased_slots = 0
         
-        -- Update UI with shared warehouses info
+        -- Update UI with full warehouse info (including owned: false) so Buy Warehouse button shows
         SendNUIMessage({
-            action = 'updateSharedWarehouses',
-            data = info.shared_warehouses
+            action = 'updateWarehouseInfo',
+            data = info
         })
     end
 end)

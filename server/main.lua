@@ -832,7 +832,7 @@ local function getSharedWarehouses(citizenId)
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.lastname')) as owner_lastname
         FROM warehouse_sharing ws
         JOIN warehouses w ON ws.warehouse_id = w.id
-        LEFT JOIN players p ON ws.owner_citizenid = p.citizenid
+        LEFT JOIN players p ON ws.owner_citizenid = p.stateid
         WHERE ws.shared_with_citizenid = ? AND (ws.expires_at > NOW() OR ws.expires_at IS NULL)
         ORDER BY ws.created_at DESC
     ]], { citizenId })
@@ -847,7 +847,7 @@ local function getWarehouseSharedUsers(warehouseId)
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.firstname')) as player_firstname, 
                JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.lastname')) as player_lastname
         FROM warehouse_sharing ws
-        LEFT JOIN players p ON ws.shared_with_citizenid = p.citizenid
+        LEFT JOIN players p ON ws.shared_with_citizenid = p.stateid
         WHERE ws.warehouse_id = ?
         ORDER BY ws.created_at DESC
     ]], { warehouseId })
